@@ -5,9 +5,8 @@ import logging
 from operator import add
 from typing import Annotated
 from dotenv import load_dotenv
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict, List
 from langchain_openai import ChatOpenAI
-from typing import List
 from pydantic import BaseModel, Field
 from langgraph.types import Send
 from langgraph.graph import StateGraph, START, END
