@@ -11,15 +11,16 @@ app = FastAPI()
 
 supervisor = ITHelpDeskSupervisorAgent()
 
-class InputData(BaseModel):
-    user_input: str
+class ChatRequest(BaseModel):
+    message: str
+    thread_id: str
 
 @app.post("/chat")
-async def chat(input_data: InputData):
+async def chat(request: ChatRequest):
 
-    logger.info(f"Input data: {input_data}")
+    logger.info(f"Input data: {request.message} and thread id: {request.thread_id}")
 
-    if not input_data.user_input:
+    if not request.message:
         raise HTTPException(
             status_code=400,
             detail="User input is required",
@@ -28,7 +29,8 @@ async def chat(input_data: InputData):
     try:
         logger.info("Sending message query.")
         answer = supervisor.execute_supervisor(
-            user_input=input_data.user_input
+            user_input=request.message,
+            thread_id=request.thread_id,
         )
 
         logger.info("Answer received.")

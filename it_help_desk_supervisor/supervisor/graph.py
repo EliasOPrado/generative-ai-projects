@@ -40,7 +40,6 @@ class HelpDeskState(TypedDict):
     query: str
     messages: Annotated[List[BaseMessage], add]
     agents: List[str]
-    answers: Annotated[List[str], add]
     final_answer: str
 
 
@@ -90,7 +89,11 @@ class ITHelpDeskSupervisorAgent:
 
         return [Send(agent, state) for agent in state["agents"]]
 
-    def execute_supervisor(self, user_input: str):
+    def execute_supervisor(
+            self,
+            user_input: str,
+            thread_id: str,
+    ):
 
         print("Starting the supervisor.")
 
@@ -104,7 +107,7 @@ class ITHelpDeskSupervisorAgent:
         }
 
         result = self.app.invoke(
-            input_state, config={"configurable": {"thread_id": "user-4321"}}
+            input_state, config={"configurable": {"thread_id": thread_id}}
         )
 
         return result["final_answer"]
@@ -112,11 +115,16 @@ class ITHelpDeskSupervisorAgent:
     def merge(self, state: HelpDeskState):
         print("Starting merge")
 
-        final_answer = "\n\n".join(state["answers"])
+        ai_messages = [
+            message
+            for message in state["messages"]
+            if isinstance(message, AIMessage)
+        ]
+
+        final_answer = ai_messages[-1].content
 
         return {
-            "final_answer": final_answer,
-            # "messages": [AIMessage(content=final_answer)],
+            "final_answer": final_answer
         }
 
     def hardware_agent_node(self, state: HelpDeskState):
@@ -130,7 +138,11 @@ class ITHelpDeskSupervisorAgent:
 
         ai_message = answer["messages"][-1]
 
-        return {"answers": [ai_message.content]}
+        return {
+            "messages": [
+                ai_message
+            ]
+        }
 
     def software_agent_node(self, state: HelpDeskState):
         print(" Starting the software agent node.")
@@ -143,7 +155,11 @@ class ITHelpDeskSupervisorAgent:
 
         ai_message = answer["messages"][-1]
 
-        return {"answers": [ai_message.content]}
+        return {
+            "messages": [
+                ai_message
+            ]
+        }
 
     def general_agent_node(self, state: HelpDeskState):
         print(" Starting the general agent node.")
@@ -156,4 +172,8 @@ class ITHelpDeskSupervisorAgent:
 
         ai_message = answer["messages"][-1]
 
-        return {"answers": [ai_message.content]}
+        return {
+            "messages": [
+                ai_message
+            ]
+        }
