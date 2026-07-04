@@ -5,6 +5,7 @@ from typing import Annotated
 from dotenv import load_dotenv
 from typing_extensions import TypedDict, List
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, Field
 from langgraph.types import Send
 from langgraph.graph import StateGraph, START, END
@@ -12,6 +13,8 @@ from agents.billing_agent import billing_agent
 from agents.sales_agent import sales_agent
 from agents.technical_agent import technical_agent
 from agents.general_agent import general_agent
+from langchain_core.messages import HumanMessage
+from langgraph.checkpoint.memory import InMemorySaver
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +28,7 @@ llm = ChatOpenAI(
 
 class CustomerSupportState(TypedDict):
     query: str
+    messages: Annotated[list[BaseMessage], add]
     agents: List[str]
     answers: Annotated[list[str], add]
     final_answer: str
@@ -59,20 +63,34 @@ class CustomerSupportAgent:
 
         self.graph.add_edge("merge_results", END)
 
-        self.app = self.graph.compile()
+        memory = InMemorySaver()
+
+        self.app = self.graph.compile(
+            checkpointer=memory
+        )
 
     def execute_supervisor(self, user_input: str):
 
         self.logging.info("Start the supervisor")
 
-        input_state = CustomerSupportState = {
+        input_state: CustomerSupportState = {
             "query": user_input,
+            "messages": [
+                HumanMessage(content=user_input)
+            ],
             "agents": [],
             "answers": [],
             "final_answer": "",
         }
 
-        result = self.app.invoke(input_state)
+        result = self.app.invoke(
+            input_state,
+            config={
+                "configurable": {
+                    "thread_id": "user-123"
+                }
+            }
+        )
 
         return result["final_answer"]
 
@@ -229,8 +247,15 @@ class CustomerSupportAgent:
 
         self.logging.info("Start the agent merge results")
 
+        from langchain_core.messages import AIMessage
+
+        final_answer = "\n\n".join(state["answers"])
+
         return {
-            "final_answer": "\n\n".join(state["answers"]),
+            "final_answer": final_answer,
+            "messages": [
+                AIMessage(content=final_answer)
+            ],
         }
 
     def general_agent_node(self, state: CustomerSupportState):
@@ -238,7 +263,7 @@ class CustomerSupportAgent:
         self.logging.info("Start the agent general agent")
 
         answer = general_agent.invoke({
-            "query": state["query"],
+            "messages": state["messages"],
         })
 
         ai_message = answer["messages"][-1]
@@ -254,7 +279,7 @@ class CustomerSupportAgent:
         self.logging.info("Start the agent billing agent")
 
         answer = billing_agent.invoke({
-            "query": state["query"],
+            "messages": state["messages"],
         })
 
         ai_message = answer["messages"][-1]
@@ -270,7 +295,7 @@ class CustomerSupportAgent:
         self.logging.info("Start the agent sales agent")
 
         answer = sales_agent.invoke({
-            "query": state["query"],
+            "messages": state["messages"],
         })
 
         ai_message = answer["messages"][-1]
@@ -286,7 +311,7 @@ class CustomerSupportAgent:
         self.logging.info("Start the agent technical agent")
 
         answer = technical_agent.invoke({
-            "query": state["query"],
+            "messages": state["messages"],
         })
 
         ai_message = answer["messages"][-1]
