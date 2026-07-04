@@ -8,6 +8,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, Field
 from langgraph.types import Send
+from langchain_core.messages import AIMessage
 from langgraph.graph import StateGraph, START, END
 from agents.billing_agent import billing_agent
 from agents.sales_agent import sales_agent
@@ -93,7 +94,6 @@ class CustomerSupportAgent:
         )
 
         return result["final_answer"]
-
 
     def classify_user_intention(self, state: CustomerSupportState):
 
@@ -246,8 +246,6 @@ class CustomerSupportAgent:
     def merge_results(self, state: CustomerSupportState):
 
         self.logging.info("Start the agent merge results")
-
-        from langchain_core.messages import AIMessage
 
         final_answer = "\n\n".join(state["answers"])
 
