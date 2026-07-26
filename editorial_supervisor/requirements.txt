@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+langchain
+langgraph
+langchain_openai
+langchain-community
+httpx
+python-dotenv
+streamlit
+requests
